@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Loan {
+  @@map("loans")
+
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt @unique(map: "idx_loan_id_unique")
+  libraryId    Int      @db.UnsignedInt
+  copySeqNum   Int      @db.UnsignedInt
+  copyBookIsbn String   @db.VarChar(255)
+  readerId     Int      @db.UnsignedInt
+  startDate    DateTime @db.DateTime(0)
+  endDate      DateTime @db.DateTime(0)
+  library      Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_loan_library")
+  copy         Copy     @relation(fields: [copySeqNum, copyBookIsbn], references: [sequenceNumber, bookIsbn], onDelete: Cascade, onUpdate: Cascade, map: "fk_loan_copy")
+  reader       Reader   @relation(fields: [readerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_loan_reader")
+}
+
+model Copy {
+  @@map("copies")
+
+  sequenceNumber Int     @db.UnsignedInt
+  bookIsbn       String  @db.VarChar(255)
+  libraryId      Int     @db.UnsignedInt
+  condition      String  @db.VarChar(255)
+  book           Book    @relation(fields: [bookIsbn], references: [isbn], onDelete: Cascade, onUpdate: Cascade, map: "fk_copy_book")
+  library        Library @relation(fields: [libraryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_copy_library")
+  loans          Loan[]
+
+  @@id([sequenceNumber, bookIsbn])
+}
+
+model Library {
+  @@map("libraries")
+
+  id      Int    @id @default(autoincrement()) @db.UnsignedInt @unique(map: "idx_library_id_unique")
+  name    String @db.VarChar(255)
+  website String @db.VarChar(255) @unique(map: "idx_library_website_unique")
+  email   String @db.VarChar(255) @unique(map: "idx_library_email_unique")
+  address String @db.VarChar(255)
+  copies  Copy[]
+  loans   Loan[]
+}
+
+model Review {
+  @@map("reviews")
+
+  readerId Int      @db.UnsignedInt
+  bookIsbn String   @db.VarChar(255)
+  rating   Int      @db.UnsignedTinyInt
+  content  String   @db.Text
+  date     DateTime @db.DateTime(0)
+  reader   Reader   @relation(fields: [readerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_review_reader")
+  book     Book     @relation(fields: [bookIsbn], references: [isbn], onDelete: Cascade, onUpdate: Cascade, map: "fk_review_book")
+
+  @@id([readerId, bookIsbn])
+}
+
+model SavedBooks {
+  @@map("saved_books")
+
+  readerId Int    @db.UnsignedInt
+  bookIsbn String @db.VarChar(255)
+  reader   Reader @relation(fields: [readerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_savedbook_reader")
+  book     Book   @relation(fields: [bookIsbn], references: [isbn], onDelete: Cascade, onUpdate: Cascade, map: "fk_savedbook_book")
+
+  @@id([readerId, bookIsbn])
+}
+
+model Book {
+  @@map("books")
+
+  isbn            String       @id @db.VarChar(255) @unique(map: "idx_book_isbn_unique")
+  authorId        Int          @db.UnsignedInt
+  title           String       @db.VarChar(255)
+  publicationDate DateTime     @db.DateTime(0)
+  author          Reader       @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "fk_book_author")
+  savedBooks      SavedBooks[]
+  reviews         Review[]
+  copies          Copy[]
+}
+
+model Reader {
+  @@map("readers")
+
+  id            Int          @id @default(autoincrement()) @db.UnsignedInt @unique(map: "idx_reader_id_unique")
+  name          String       @db.VarChar(255)
+  email         String       @db.VarChar(255) @unique(map: "idx_reader_email_unique")
+  address       String       @db.VarChar(255)
+  password_hash String       @db.VarChar(255)
+  roles         Json
+  reviews       Review[]
+  savedBooks    SavedBooks[]
+  loans         Loan[]
+  books         Book[]
+}
